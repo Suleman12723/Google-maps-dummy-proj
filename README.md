@@ -1,70 +1,124 @@
-# Getting Started with Create React App
+# Google Maps Dummy Project
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+### To Run project
 
-## Available Scripts
+```bash
+npm  i -g json-server
+```
 
-In the project directory, you can run:
+- Open project folder in Terminal and run the following command
+```bash
+json-server --watch data/data.json
+```
+- Open project folder in a seprate Terminal and run the following command
+```bash
+npm start
+```
 
-### `npm start`
+### Tasks
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- This project is to check how the dealer will signup and give their Dealership Location by drawing polygon around it.
+- Once Signed up you have to reload as there is no redux or routing done here.
+- Now signup with the same Name and password you gave while signing up.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- Now the dealer can mark their car inside the polygon and not outside the polygon.
 
-### `npm test`
+## Environment Variables
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+To run this peoject you have to put your Google API key in ```App.js``` file
 
-### `npm run build`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+`googleMapsApiKey` = Google API_KEY
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
 
-### `npm run eject`
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Some important Functions
+- Function to get the center point of a polygon
+- It takes an array of polygon coordinates(```[{lat,lng},...]```) an returns a center point as the center. 
+```js 
+function get_polygon_centroid(pts) {
+    var first = pts[0], last = pts[pts.length-1];
+    if (first.lat != last.lat || first.lng != last.lng) pts.push(first);
+    var twicearea=0,
+    x=0, y=0,
+    nPts = pts.length,
+    p1, p2, f;
+    for ( var i=0, j=nPts-1 ; i<nPts ; j=i++ ) {
+       p1 = pts[i]; p2 = pts[j];
+       f = (p1.lng - first.lng) * (p2.lat - first.lat) - (p2.lng - first.lng) * (p1.lat - first.lat);
+       twicearea += f;
+       x += (p1.lat + p2.lat - 2 * first.lat) * f;
+       y += (p1.lng + p2.lng - 2 * first.lng) * f;
+    }
+    f = twicearea * 3;
+    return { lat:x/f + first.lat, lng:y/f + first.lng };
+ }
+```
+---
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+- This Function return a ```true or false``` based on if the point(lat,lng) are inside the polygon or not.
+- This takes arguments `point` (a point {lat,lng}) and `vs` (an array of coords [{lat,lng},...])
+```js
+function inside(point, vs) {            
+    var x = point.lat, y = point.lng;
+    var inside = false;
+    for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        var xi = vs[i].lat, yi = vs[i].lng;
+        var xj = vs[j].lat, yj = vs[j].lng;
+        
+        var intersect = ((yi > y) != (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+    };
+    const handleMarker = (e)=>{        
+        let brand = prompt("Please enter your car's brand", "BMW");
+        if(brand){
+            setMarkers([...markers,{carId:Math.random(),Brand:brand,location:{lat:e.latLng.lat(),lng:e.latLng.lng()}}])
+            drawRect(e.latLng.lat(),e.latLng.lng(),5,10)
+            console.log(inside({lat:e.latLng.lat(),lng:e.latLng.lng()},polygonCords));
+        }
+    }
+```
+---
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+- This Function returns a `polygon coords array` that you can pass to a `<Polygon />` in maps.
+- It takes a `lat`, `lng`, `height`and `width` as arguments.
+```js
+function drawRect(lat, lng, width, height) {            //drawRect if you want to make a polygon based on width and height taking a point(coordinate) as center
 
-## Learn More
+        var center = new window.google.maps.LatLng(lat, lng);
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+        var north = window.google.maps.geometry.spherical.computeOffset(center, height / 2, NORTH); 
+        var south = window.google.maps.geometry.spherical.computeOffset(center, height / 2, SOUTH); 
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+        var northEast = window.google.maps.geometry.spherical.computeOffset(north, width / 2, EAST); 
+        var northWest = window.google.maps.geometry.spherical.computeOffset(north, width / 2, WEST); 
 
-### Code Splitting
+        var southEast = window.google.maps.geometry.spherical.computeOffset(south, width / 2, EAST); 
+        var southWest = window.google.maps.geometry.spherical.computeOffset(south, width / 2, WEST); 
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+        var corners = [ northEast, northWest, southWest, southEast ];
+        setaddCar([...addCar,{center:{lat,lng},corners:corners}]);
 
-### Analyzing the Bundle Size
+        //You can add this part also as this will create a new polygon for you that you can use somewhere in google maps
+        //but here we are not returning anything only seting the addCar state above based on array of cords 
+        /* var rect = new window.google.maps.Polygon({
+                 paths: corners,
+                 strokeColor: color,
+                 strokeOpacity: 0.9,
+                 strokeWeight: 1,
+                 fillColor: color,
+                 fillOpacity: 0.3,
+                 map: map
+        });*/
+}
+``` 
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## License
 
-### Making a Progressive Web App
+[MIT](https://choosealicense.com/licenses/mit/)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
